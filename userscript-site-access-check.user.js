@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         网站访问确认脚本
 // @namespace    https://github.com/liucong2013/userscript-site-access-check
-// @version      1.2
+// @version      1.3
 // @description  限制指定主域名及其所有子域名的访问，显示确认页面，支持30分钟、今日内和本次会话不再提示，受限列表存储在 GM_Value 中，已确认页面显示倒计时，支持通过菜单添加当前域名到限制列表
 // @author       lc cong
 // @match        *://*/*
@@ -112,8 +112,9 @@
                 const endOfToday = getEndOfTodayTimestamp();
                 // 检查确认时间戳是否是今天（防止跨天后 today 确认仍然有效）
                 const confirmDate = new Date(confirmInfo.timestamp);
-                const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-                if (confirmDate < today) {
+                const nowDate = new Date(now); // 从时间戳创建 Date 对象
+                const todayStart = new Date(nowDate.getFullYear(), nowDate.getMonth(), nowDate.getDate()); // 获取今天开始的时间
+                if (confirmDate < todayStart) {
                     // 确认时间是昨天或更早，已过期
                     return false;
                 }

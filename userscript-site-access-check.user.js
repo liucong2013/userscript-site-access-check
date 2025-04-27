@@ -12,6 +12,7 @@
 // @grant        GM_registerMenuCommand
 // @run-at       document_start
 // @noframes
+// @supportURL   https://raw.githubusercontent.com/liucong2013/userscript-site-access-check/refs/heads/main/README.md
 // ==/UserScript==
 
 (function() {

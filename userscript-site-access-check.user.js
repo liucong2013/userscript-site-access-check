@@ -11,10 +11,17 @@
 // @grant        GM_addStyle
 // @grant        GM_registerMenuCommand
 // @run-at       document_start
+// @noframes
 // ==/UserScript==
 
 (function() {
     'use strict';
+
+    if (window.top !== window.self) {
+        console.log("脚本在 iframe 中运行，退出或执行 iframe 特定逻辑");
+        return;
+          console.log("=======");
+    }
 
     // --- 配置区 ---
     // GM_Value Key for the restricted domains list
@@ -24,6 +31,8 @@
     const LOCAL_CONFIRM_KEY_PREFIX = 'confirmed_access_';
     // SessionStorage Key Prefix (本次会话有效)
     const SESSION_CONFIRM_KEY_PREFIX = 'session_confirmed_access_';
+
+
 
 
     // --- 函数区 ---
@@ -84,7 +93,7 @@
     // 检查当前网站是否已被用户通过 localStorage 确认且未过期
     function isLocalConfirmedAndNotExpired(hostname) {
         const storedData = GM_getValue(LOCAL_CONFIRM_KEY_PREFIX + hostname, null);
-         if (!storedData) {
+        if (!storedData) {
             return false;
         }
 
@@ -96,14 +105,14 @@
                 const expiryTime = confirmInfo.timestamp + 30 * 60 * 1000;
                 return now < expiryTime;
             } else if (confirmInfo.expiryType === 'today') {
-                 const endOfToday = getEndOfTodayTimestamp();
-                 // 检查确认时间戳是否是今天（防止跨天后 today 确认仍然有效）
-                 const confirmDate = new Date(confirmInfo.timestamp);
-                 const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-                 if (confirmDate < today) {
-                     // 确认时间是昨天或更早，已过期
-                     return false;
-                 }
+                const endOfToday = getEndOfTodayTimestamp();
+                // 检查确认时间戳是否是今天（防止跨天后 today 确认仍然有效）
+                const confirmDate = new Date(confirmInfo.timestamp);
+                const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                if (confirmDate < today) {
+                    // 确认时间是昨天或更早，已过期
+                    return false;
+                }
                 return now < endOfToday;
             }
 
@@ -115,15 +124,15 @@
         }
     }
 
-     // 检查当前网站是否已被用户通过 sessionStorage 确认
+    // 检查当前网站是否已被用户通过 sessionStorage 确认
     function isSessionConfirmed(hostname) {
         // sessionStorage 是浏览器原生的，不是 Tampermonkey API
         // 确保在页面加载早期能够访问 sessionStorage
         try {
-             return sessionStorage.getItem(SESSION_CONFIRM_KEY_PREFIX + hostname) === 'true';
+            return sessionStorage.getItem(SESSION_CONFIRM_KEY_PREFIX + hostname) === 'true';
         } catch (e) {
-             console.error("访问 sessionStorage 失败:", e);
-             return false;
+            console.error("访问 sessionStorage 失败:", e);
+            return false;
         }
     }
 
@@ -139,19 +148,19 @@
 
     // 标记当前网站已被用户通过 sessionStorage 确认
     function setSessionConfirmed(hostname) {
-         try {
+        try {
             sessionStorage.setItem(SESSION_CONFIRM_KEY_PREFIX + hostname, 'true');
-         } catch (e) {
-             console.error("写入 sessionStorage 失败:", e);
-         }
+        } catch (e) {
+            console.error("写入 sessionStorage 失败:", e);
+        }
     }
 
 
     // 显示限制页面
     function showRestrictionPage(hostname) {
-         // 确保在页面加载早期清空内容
-         if (document.documentElement) document.documentElement.innerHTML = '';
-         if (document.head) document.head.innerHTML = '';
+        // 确保在页面加载早期清空内容
+        if (document.documentElement) document.documentElement.innerHTML = '';
+        if (document.head) document.head.innerHTML = '';
 
         GM_addStyle(`
             body {
@@ -213,8 +222,8 @@
 
         // 确保 body 存在后再添加内容
         if (!document.body) {
-             const body = document.createElement('body');
-             document.documentElement.appendChild(body);
+            const body = document.createElement('body');
+            document.documentElement.appendChild(body);
         }
         document.body.innerHTML = restrictionHTML;
 
@@ -234,15 +243,15 @@
         });
     }
 
-        // 在页面右上角显示倒计时
+    // 在页面右上角显示倒计时
     function showCountdown(hostname, expiryType, timestamp) {
-         // 确保 body 存在才能添加元素
-         if (!document.body) {
-              console.warn("页面body未加载，无法显示倒计时。");
-              return;
-         }
+        // 确保 body 存在才能添加元素
+        if (!document.body) {
+            console.warn("页面body未加载，无法显示倒计时。");
+            return;
+        }
 
-         GM_addStyle(`
+        GM_addStyle(`
             #restriction-countdown {
                 position: fixed;
                 top: 70px;
@@ -286,33 +295,33 @@
                 expiryLabel = '剩余时间';
                 if (remainingTime <= 0) isExpired = true;
             } else if (expiryType === 'today') {
-                 const endOfToday = getEndOfTodayTimestamp();
-                 remainingTime = endOfToday - now;
-                 expiryLabel = '今天剩余';
-                 // 额外检查确认时间是否是今天
-                 const confirmDate = new Date(timestamp);
-                 const today = new Date(now);
-                 if (confirmDate.getFullYear() !== today.getFullYear() || confirmDate.getMonth() !== today.getMonth() || confirmDate.getDate() !== today.getDate()) {
-                     isExpired = true; // 确认时间不是今天，已过期
-                 } else if (remainingTime <= 0) {
-                     isExpired = true; // 今天时间已过
-                 }
+                const endOfToday = getEndOfTodayTimestamp();
+                remainingTime = endOfToday - now;
+                expiryLabel = '今天剩余';
+                // 额外检查确认时间是否是今天
+                const confirmDate = new Date(timestamp);
+                const today = new Date(now);
+                if (confirmDate.getFullYear() !== today.getFullYear() || confirmDate.getMonth() !== today.getMonth() || confirmDate.getDate() !== today.getDate()) {
+                    isExpired = true; // 确认时间不是今天，已过期
+                } else if (remainingTime <= 0) {
+                    isExpired = true; // 今天时间已过
+                }
 
             } else if (expiryType === 'session') {
-                 countdownDiv.textContent = `✅ 已确认 (本次会话)`;
-                 return; // 会话确认不需要倒计时
+                countdownDiv.textContent = `✅ 已确认 (本次会话)`;
+                return; // 会话确认不需要倒计时
             }
 
 
             if (isExpired) {
                 countdownDiv.textContent = `❌ 确认已过期`;
-                 // 可选：如果确认过期，可以考虑重新触发限制逻辑
-                 // 注意：直接 window.location.reload() 可能导致无限循环
-                 // 更好的做法是清除确认状态，然后让脚本在下一次页面加载时重新判断
-                 // GM_deleteValue(LOCAL_CONFIRM_KEY_PREFIX + hostname);
+                // 可选：如果确认过期，可以考虑重新触发限制逻辑
+                // 注意：直接 window.location.reload() 可能导致无限循环
+                // 更好的做法是清除确认状态，然后让脚本在下一次页面加载时重新判断
+                // GM_deleteValue(LOCAL_CONFIRM_KEY_PREFIX + hostname);
                 // 当过期时也清除 interval
                 if (intervalId) {
-                   clearInterval(intervalId);
+                    clearInterval(intervalId);
                 }
                 return;
             }
@@ -327,17 +336,17 @@
                 timeString += `${days}天`;
             }
             if (hours > 0 || days > 0) { // 如果有天或小时，显示小时
-                 timeString += `${hours}小时`;
+                timeString += `${hours}小时`;
             }
-             if (minutes > 0 || hours > 0 || days > 0) { // 如果有小时、天或分钟，显示分钟
-                 timeString += `${minutes}分钟`;
-             }
-             // 总是显示秒，除非时间很长
-             if (days === 0 && hours === 0 && minutes < 5) { // 剩余时间较短时显示秒
-                 timeString += `${seconds}秒`;
-             } else if (timeString === '') { // 如果时间非常短，只显示秒
-                 timeString = `${seconds}秒`;
-             }
+            if (minutes > 0 || hours > 0 || days > 0) { // 如果有小时、天或分钟，显示分钟
+                timeString += `${minutes}分钟`;
+            }
+            // 总是显示秒，除非时间很长
+            if (days === 0 && hours === 0 && minutes < 5) { // 剩余时间较短时显示秒
+                timeString += `${seconds}秒`;
+            } else if (timeString === '') { // 如果时间非常短，只显示秒
+                timeString = `${seconds}秒`;
+            }
 
 
             countdownDiv.textContent = `⏳ ${expiryLabel}: ${timeString}`;
@@ -351,9 +360,9 @@
 
         // 当页面卸载时尝试清除 interval（可选，但有助于清理）
         window.addEventListener('beforeunload', () => {
-             if (intervalId) {
-                 clearInterval(intervalId);
-             }
+            if (intervalId) {
+                clearInterval(intervalId);
+            }
         });
     }
 
@@ -390,14 +399,33 @@
 
     // 注册菜单命令
     GM_registerMenuCommand("➕ 将当前域名添加到限制列表", addCurrentDomainToRestrictedList);
+    // 如果当前域名已在限制列表，注册移除菜单命令
+
 
 
     // --- 主逻辑 ---
 
     const currentHostname = window.location.hostname;
 
+
+
     // 首先通过 isRestricted 函数判断当前域名是否在限制范围内
     if (isRestricted(currentHostname)) {
+
+        GM_registerMenuCommand("🗑️ 将当前域名从限制列表移除", function() {
+            const restrictedDomains = getRestrictedBaseDomains();
+            const idx = restrictedDomains.indexOf(currentHostname);
+            if (idx !== -1) {
+                restrictedDomains.splice(idx, 1);
+                setRestrictedBaseDomains(restrictedDomains);
+                alert(`域名 \"${currentHostname}\" 已从限制列表移除。`);
+                // 可选：移除后刷新页面
+                // window.location.reload();
+            } else {
+                alert(`域名 \"${currentHostname}\" 不在限制列表中。`);
+            }
+        });
+
         // 如果是受限域名，则检查是否已确认
         const sessionConfirmed = isSessionConfirmed(currentHostname);
         const localConfirmedData = GM_getValue(LOCAL_CONFIRM_KEY_PREFIX + currentHostname, null);
@@ -415,9 +443,9 @@
 
             // 在已放行的受限网站上显示倒计时
             if (sessionConfirmed) {
-                 showCountdown(currentHostname, 'session', null); // 会话确认没有时间戳
+                showCountdown(currentHostname, 'session', null); // 会话确认没有时间戳
             } else if (localConfirmedAndNotExpired && localConfirmedInfo) {
-                 showCountdown(currentHostname, localConfirmedInfo.expiryType, localConfirmedInfo.timestamp);
+                showCountdown(currentHostname, localConfirmedInfo.expiryType, localConfirmedInfo.timestamp);
             }
         }
     } else {

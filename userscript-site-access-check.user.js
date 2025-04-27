@@ -29,8 +29,8 @@
 
     // GM_Value Key Prefix for localStorage (长期和今日有效)
     const LOCAL_CONFIRM_KEY_PREFIX = 'confirmed_access_';
-    // SessionStorage Key Prefix (本次会话有效)
-    const SESSION_CONFIRM_KEY_PREFIX = 'session_confirmed_access_';
+    // SessionStorage Key Prefix (本次会话有效) - 不再用于主要确认逻辑
+    // const SESSION_CONFIRM_KEY_PREFIX = 'session_confirmed_access_';
 
 
 
@@ -104,6 +104,9 @@
             if (confirmInfo.expiryType === '30min') {
                 const expiryTime = confirmInfo.timestamp + 30 * 60 * 1000;
                 return now < expiryTime;
+            } else if (confirmInfo.expiryType === '5min') {
+                const expiryTime = confirmInfo.timestamp + 5 * 60 * 1000;
+                return now < expiryTime;
             } else if (confirmInfo.expiryType === 'today') {
                 const endOfToday = getEndOfTodayTimestamp();
                 // 检查确认时间戳是否是今天（防止跨天后 today 确认仍然有效）
@@ -124,10 +127,9 @@
         }
     }
 
-    // 检查当前网站是否已被用户通过 sessionStorage 确认
+    // 检查当前网站是否已被用户通过 sessionStorage 确认 (不再用于主要确认逻辑)
+    /*
     function isSessionConfirmed(hostname) {
-        // sessionStorage 是浏览器原生的，不是 Tampermonkey API
-        // 确保在页面加载早期能够访问 sessionStorage
         try {
             return sessionStorage.getItem(SESSION_CONFIRM_KEY_PREFIX + hostname) === 'true';
         } catch (e) {
@@ -135,6 +137,7 @@
             return false;
         }
     }
+    */
 
 
     // 标记当前网站已被用户通过 localStorage 确认，并设置过期时间
@@ -146,7 +149,8 @@
         GM_setValue(LOCAL_CONFIRM_KEY_PREFIX + hostname, JSON.stringify(confirmInfo));
     }
 
-    // 标记当前网站已被用户通过 sessionStorage 确认
+    // 标记当前网站已被用户通过 sessionStorage 确认 (不再用于主要确认逻辑)
+    /*
     function setSessionConfirmed(hostname) {
         try {
             sessionStorage.setItem(SESSION_CONFIRM_KEY_PREFIX + hostname, 'true');
@@ -154,6 +158,7 @@
             console.error("写入 sessionStorage 失败:", e);
         }
     }
+    */
 
 
     // 显示限制页面
@@ -215,7 +220,7 @@
                 <div class="button-container">
                     <button id="confirm-30min">在接下来的 30 分钟内不再提示</button>
                     <button id="confirm-today">今天剩余时间内不再提示</button>
-                    <button id="confirm-session">仅本次访问</button>
+                    <button id="confirm-5min">允许访问 5 分钟</button>
                 </div>
             </div>
         `;
@@ -237,8 +242,8 @@
             window.location.reload();
         });
 
-        document.getElementById('confirm-session').addEventListener('click', () => {
-            setSessionConfirmed(hostname);
+        document.getElementById('confirm-5min').addEventListener('click', () => {
+            setLocalConfirmed(hostname, '5min');
             window.location.reload();
         });
     }
@@ -307,9 +312,11 @@
                     isExpired = true; // 今天时间已过
                 }
 
-            } else if (expiryType === 'session') {
-                countdownDiv.textContent = `✅ 已确认 (本次会话)`;
-                return; // 会话确认不需要倒计时
+            } else if (expiryType === '5min') {
+                const expiryTime = timestamp + 5 * 60 * 1000;
+                remainingTime = expiryTime - now;
+                expiryLabel = '剩余时间 (5分钟)';
+                if (remainingTime <= 0) isExpired = true;
             }
 
 
@@ -427,14 +434,22 @@
         });
 
         // 如果是受限域名，则检查是否已确认
-        const sessionConfirmed = isSessionConfirmed(currentHostname);
+        // const sessionConfirmed = isSessionConfirmed(currentHostname); // 不再需要会话确认
         const localConfirmedData = GM_getValue(LOCAL_CONFIRM_KEY_PREFIX + currentHostname, null);
-        const localConfirmedInfo = localConfirmedData ? JSON.parse(localConfirmedData) : null;
+        let localConfirmedInfo = null;
+        try {
+            if (localConfirmedData) {
+                localConfirmedInfo = JSON.parse(localConfirmedData);
+            }
+        } catch (e) {
+            console.error("解析本地确认信息失败:", e);
+            GM_deleteValue(LOCAL_CONFIRM_KEY_PREFIX + currentHostname); // 清除损坏的数据
+        }
         const localConfirmedAndNotExpired = isLocalConfirmedAndNotExpired(currentHostname);
 
 
-        // 如果既没有会话级确认，也没有未过期的长期确认
-        if (!sessionConfirmed && !localConfirmedAndNotExpired) {
+        // 如果没有未过期的本地确认 (包括 30min, today, 5min)
+        if (!localConfirmedAndNotExpired) {
             console.log(`访问 ${currentHostname} 受限，显示确认页面...`);
             showRestrictionPage(currentHostname);
         } else {
@@ -442,9 +457,7 @@
             console.log(`访问 ${currentHostname} 已放行.`);
 
             // 在已放行的受限网站上显示倒计时
-            if (sessionConfirmed) {
-                showCountdown(currentHostname, 'session', null); // 会话确认没有时间戳
-            } else if (localConfirmedAndNotExpired && localConfirmedInfo) {
+            if (localConfirmedAndNotExpired && localConfirmedInfo) {
                 showCountdown(currentHostname, localConfirmedInfo.expiryType, localConfirmedInfo.timestamp);
             }
         }

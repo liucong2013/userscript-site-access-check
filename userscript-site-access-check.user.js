@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         网站访问确认脚本
 // @namespace    https://github.com/liucong2013/userscript-site-access-check
-// @version      1.1
+// @version      1.2
 // @description  限制指定主域名及其所有子域名的访问，显示确认页面，支持30分钟、今日内和本次会话不再提示，受限列表存储在 GM_Value 中，已确认页面显示倒计时，支持通过菜单添加当前域名到限制列表
 // @author       lc cong
 // @match        *://*/*

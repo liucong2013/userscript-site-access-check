@@ -1,5 +1,7 @@
 # userscript-site-access-check
 
+install : [https://greasyfork.org/zh-CN/scripts/534187](https://greasyfork.org/zh-CN/scripts/534187)
+
 [🇨🇳 中文](#中文) | [🌍 English](#english)
 
 ---
